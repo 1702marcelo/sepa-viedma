@@ -211,7 +211,7 @@ header h1{font-size:17px;font-weight:700}
   <div class="search-wrap">
     <div class="search-row">
       <input type="text" id="input-ean" placeholder="Código o nombre del producto..."
-             inputmode="numeric" autocomplete="off"
+             inputmode="text" autocomplete="off"
              oninput="onSearchInput(this.value)"
              onkeypress="if(event.key==='Enter'){cerrarAC();buscarManual()}"
              onfocus="onSearchInput(this.value)"
@@ -297,6 +297,17 @@ function ean4(ean){ return String(ean).slice(-4); }
 // ═══════════════════════════════════════════════════════════
 //  CARGA DE DATOS
 // ═══════════════════════════════════════════════════════════
+async function verificarAPIKey(){
+  if(!OPENAI_KEY){
+    // Mostrar modal de config al abrir si no hay key
+    const div=document.getElementById('resultados');
+    if(div) div.innerHTML=`<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:12px;padding:16px;margin-bottom:10px">
+      <div style="font-size:28px;margin-bottom:8px">🔑</div>
+      <strong>API key no configurada</strong><br>
+      <span style="font-size:13px;color:var(--txt2)">Para usar el reconocimiento por foto, tocá ⚙️ y configurá tu API key de OpenAI.</span>
+    </div>`;
+  }
+}
 async function cargarDatos(){
   try{
     document.getElementById('loading-sub').textContent='Leyendo precios_viedma_hoy.json...';
@@ -311,6 +322,7 @@ async function cargarDatos(){
       (DATOS.fecha||'?')+(DATOS.hora?' · '+DATOS.hora:'');
     actualizarBadges();
     actualizarLocalActivo();
+    verificarAPIKey();
   }catch(e){
     document.getElementById('loading').innerHTML=`
       <div class="err-box"><strong>No se cargaron los precios.</strong><br><br>
@@ -638,6 +650,31 @@ function mostrarProducto(ean,prod,origen){
         onclick="toggleFav('${ean}','${ean}-${i}')">${esFav?'❤️':'🤍'}</button>
     </div></div>`;
   });
+
+  // ── Sucursales donde NO está el producto ─────────────
+  const skeys_con = new Set(entradas.map(([sk])=>sk));
+  const skeys_sin = Object.keys(DATOS.sucursales).filter(sk=>!skeys_con.has(sk));
+  if(skeys_sin.length){
+    h+=`<div style="margin:16px 0 8px;font-size:12px;color:#aaa;font-weight:600;
+        display:flex;align-items:center;gap:8px">
+      <span style="flex:1;border-top:1px solid #e0e0e0"></span>
+      🚫 Sin stock en estos locales
+      <span style="flex:1;border-top:1px solid #e0e0e0"></span></div>`;
+    skeys_sin.forEach(sk=>{
+      const s=DATOS.sucursales[sk]; if(!s)return;
+      const nom=s.bandera||s.nombre||'(sin nombre)';
+      const dir=[s.calle,s.numero].filter(Boolean).join(' ');
+      const loc=s.localidad||'';
+      h+=`<div style="background:#fafafa;border:1px dashed #ddd;border-radius:10px;
+           padding:10px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px;opacity:.55">
+        <span style="font-size:20px">🚫</span>
+        <div>
+          <div style="font-size:14px;font-weight:600;text-decoration:line-through;color:#aaa">${nom}</div>
+          <div style="font-size:11px;color:#bbb">${[dir,loc].filter(Boolean).join(', ')||'Sin dirección'}</div>
+          <div style="font-size:11px;color:#ccc;margin-top:1px;font-style:italic">Sin precio informado hoy</div>
+        </div></div>`;
+    });
+  }
 
   div.innerHTML=h;
   div.scrollIntoView({behavior:'smooth'});
