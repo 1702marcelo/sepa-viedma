@@ -159,19 +159,49 @@ def procesar(zip_externo_buf):
 
                     if not locales:
                         continue
+
+                    # Construir mapa flexible: normalizar IDs quitando ceros
+                    # (sucursales.csv puede tener "01" y productos.csv "1" o viceversa)
+                    def norm(v): return str(int(v)) if str(v).strip().lstrip('0').isdigit() and str(v).strip() else str(v).strip()
+                    locales_norm = {}
+                    for sk in locales:
+                        partes = sk.split('_')
+                        if len(partes) == 3:
+                            sk_norm = '_'.join(norm(p) for p in partes)
+                            locales_norm[sk_norm] = sk   # normalizado → original
+                        locales_norm[sk] = sk             # también el original
+
                     print(f' → {len(locales)} sucursal(es)', end='', flush=True)
 
                     # 3) Leer productos.csv
                     if 'productos.csv' not in archivos:
+                        print(f' (sin productos.csv)')
                         continue
                     prod_bytes = zint.read(archivos['productos.csv'])
+                    prod_filas = leer_csv_bytes(prod_bytes)
+
+                    # Debug: mostrar columnas y primera fila para diagnóstico
+                    if prod_filas:
+                        cols = list(prod_filas[0].keys())
+                        primer_skey = '_'.join([
+                            str(prod_filas[0].get('id_comercio','?')).strip(),
+                            str(prod_filas[0].get('id_bandera','?')).strip(),
+                            str(prod_filas[0].get('id_sucursal','?')).strip()
+                        ])
+                        # Mostrar skeys de sucursales vs primer skey de producto para diagnóstico
+                        skeys_suc = list(locales.keys())[:2]
+                        print(f'\n      skeys_suc: {skeys_suc} | primer_skey_prod: {primer_skey}', end='', flush=True)
+
                     prod_antes = len(productos_out)
-                    for row in leer_csv_bytes(prod_bytes):
+                    for row in prod_filas:
                         id_c = str(row.get('id_comercio','')).strip()
                         id_b = str(row.get('id_bandera','')).strip()
                         id_s = str(row.get('id_sucursal','')).strip()
-                        skey = f'{id_c}_{id_b}_{id_s}'
-                        if skey not in locales:
+                        skey_raw  = f'{id_c}_{id_b}_{id_s}'
+                        skey_norm = f'{norm(id_c)}_{norm(id_b)}_{norm(id_s)}'
+                        # Buscar en mapa flexible
+                        skey_real = locales_norm.get(skey_raw) or locales_norm.get(skey_norm)
+                        if not skey_real:
                             continue
                         ean = (row.get('productos_ean') or
                                row.get('id_producto') or '').strip()
@@ -183,7 +213,7 @@ def procesar(zip_externo_buf):
                                 'marca'      : row.get('productos_marca','').strip(),
                                 'sucursales' : {}
                             }
-                        productos_out[ean]['sucursales'][skey] = {
+                        productos_out[ean]['sucursales'][skey_real] = {
                             'precio_lista'   : to_float(row.get('productos_precio_lista')),
                             'promo1_precio'  : to_float(row.get('productos_precio_unitario_promo1')),
                             'promo1_leyenda' : row.get('productos_leyenda_promo1','').strip() or None,
