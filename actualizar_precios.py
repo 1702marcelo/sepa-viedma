@@ -23,7 +23,6 @@ def es_local(row):
     return cp in CODIGOS_POSTALES or any(l in loc for l in LOCALIDADES)
 
 def buscar_archivo(nombres_zip, sufijo):
-    """Busca un archivo por nombre dentro del ZIP, ignorando subcarpetas."""
     sufijo = sufijo.lower()
     for n in nombres_zip:
         if n.lower().endswith('/' + sufijo) or n.lower() == sufijo:
@@ -55,9 +54,9 @@ def obtener_url_zip():
     raise RuntimeError('No se encontró ZIP en la API.')
 
 def descargar_zip(url):
-    print('⬇️  Descargando...')
+    print('⬇️  Descargando ZIP...')
     r = requests.get(url, stream=True, timeout=300); r.raise_for_status()
-    total = int(r.headers.get('content-length',0))
+    total = int(r.headers.get('content-length', 0))
     buf = io.BytesIO(); bajas = 0
     for chunk in r.iter_content(65536):
         buf.write(chunk); bajas += len(chunk)
@@ -66,27 +65,20 @@ def descargar_zip(url):
     buf.seek(0); return buf
 
 def procesar(zip_buf):
-    sucursales_out = {}; productos_out = {}
-    zips_ok = 0
-
+    sucursales_out = {}; productos_out = {}; zips_ok = 0
     with zipfile.ZipFile(zip_buf) as zext:
         zips_int = [n for n in zext.namelist() if n.lower().endswith('.zip')]
         print(f'📂 ZIPs internos: {len(zips_int)}')
-
         for idx, nzip in enumerate(zips_int, 1):
             print(f'\r   {idx}/{len(zips_int)}: {nzip[:55]}', end='', flush=True)
             try:
                 with zipfile.ZipFile(io.BytesIO(zext.read(nzip))) as zint:
                     nombres = zint.namelist()
-
-                    # ── Buscar archivos ignorando subcarpetas ──────────────
                     fn_suc  = buscar_archivo(nombres, 'sucursales.csv')
                     fn_prod = buscar_archivo(nombres, 'productos.csv')
                     fn_com  = buscar_archivo(nombres, 'comercio.csv')
-                    if not fn_suc or not fn_prod:
-                        continue
+                    if not fn_suc or not fn_prod: continue
 
-                    # ── Leer banderas ──────────────────────────────────────
                     bandera_cache = {}
                     if fn_com:
                         try:
@@ -95,7 +87,6 @@ def procesar(zip_buf):
                                 bandera_cache[k] = cr.get('comercio_bandera_nombre','').strip()
                         except Exception: pass
 
-                    # ── Leer sucursales ────────────────────────────────────
                     locales = {}
                     for row in leer_csv_bytes(zint.read(fn_suc)):
                         if not es_local(row): continue
@@ -116,24 +107,21 @@ def procesar(zip_buf):
                                 for d in ['lunes','martes','miercoles','jueves','viernes','sabado','domingo']
                             }
                         }
-
                     if not locales: continue
                     zips_ok += 1
 
-                    # ── Leer productos ─────────────────────────────────────
                     for row in leer_csv_bytes(zint.read(fn_prod)):
                         id_c = row.get('id_comercio','').strip()
                         id_b = row.get('id_bandera','').strip()
                         id_s = row.get('id_sucursal','').strip()
                         skey = f'{id_c}_{id_b}_{id_s}'
                         if skey not in locales: continue
-
                         ean = row.get('id_producto','').strip()
                         if not ean or not ean.isdigit(): continue
 
                         def f(c):
                             v = row.get(c,'').strip()
-                            try: fv=float(v); return fv if fv>0 else None
+                            try: fv = float(v); return fv if fv > 0 else None
                             except: return None
 
                         if ean not in productos_out:
@@ -149,11 +137,10 @@ def procesar(zip_buf):
                             'promo2_precio' : f('productos_precio_unitario_promo2'),
                             'promo2_leyenda': row.get('productos_leyenda_promo2','').strip() or None,
                         }
-
             except Exception as e:
                 print(f'\n   ⚠️  Error en {nzip}: {e}')
 
-    print(f'\n✅ {zips_ok} ZIPs con locales | {len(sucursales_out)} sucursales | {len(productos_out)} productos')
+    print(f'\n✅ {zips_ok} ZIPs | {len(sucursales_out)} sucursales | {len(productos_out)} productos')
     return sucursales_out, productos_out
 
 if __name__ == '__main__':
