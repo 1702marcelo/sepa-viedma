@@ -224,40 +224,9 @@ function horHoy(h){
   const v=h[d];return v?(v.toLowerCase()==='cerrado'?'🔒 Cerrado hoy':v):null;
 }
 
-// Carga de imagen con fallbacks robustos
-const IMG_CACHE={};
-function cargarImg(img, ean){
-  // Caché en memoria: evita reintentos durante la sesión
-  if(IMG_CACHE[ean]===false){ img.parentNode.innerHTML='🛒'; return; }
-  if(IMG_CACHE[ean]){ img.src=IMG_CACHE[ean]; return; }
-  // El navegador cachea automáticamente las respuestas HTTP
-  // → segunda visita: carga instantánea sin red
-  const e=String(ean).padStart(13,'0');
-  const p=`${e.slice(0,3)}/${e.slice(3,6)}/${e.slice(6,9)}/${e.slice(9)}`;
-  const base=`https://images.openfoodfacts.org/images/products/${p}`;
-  const urls=[
-    `${base}/front_es.200.jpg`,
-    `${base}/front.200.jpg`,
-    `${base}/front_world.200.jpg`,
-    `${base}/1.200.jpg`,
-  ];
-  let idx=0;
-  function probar(){
-    if(idx>=urls.length){ IMG_CACHE[ean]=false; img.parentNode.innerHTML='🛒'; return; }
-    img.onerror=()=>{ idx++; probar(); };
-    img.onload=()=>{ IMG_CACHE[ean]=img.src; };
-    img.src=urls[idx++];
-  }
-  probar();
-}
 function imgEl(ean,cls,sz){
   const r=sz>70?11:8;
-  const uid=`img-${ean}-${Math.random().toString(36).slice(2,7)}`;
-  // setTimeout para ejecutar después de que el DOM se inserte
-  setTimeout(()=>{const el=document.getElementById(uid);if(el)cargarImg(el,ean);},0);
-  return `<div class="${cls}"><img id="${uid}" alt=""
-    style="width:${sz}px;height:${sz}px;object-fit:contain;border-radius:${r}px"
-    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${sz}' height='${sz}'%3E%3C/svg%3E"></div>`;
+  return `<div class="${cls}" style="display:flex;align-items:center;justify-content:center;font-size:${sz>70?32:20}px">🛒</div>`;
 }
 
 // ── CARGA ───────────────────────────────────────────────────
