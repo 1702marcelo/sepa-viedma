@@ -2,37 +2,77 @@ name: Actualizar Precios SEPA
 
 on:
   schedule:
-    - cron: '0 16 * * *'
+    - cron: '0 15 * * *'    # 12:00 AR
+    - cron: '30 15 * * *'   # 12:30 AR
+    - cron: '0 16 * * *'    # 13:00 AR
+    - cron: '30 16 * * *'   # 13:30 AR
+    - cron: '0 17 * * *'    # 14:00 AR
+    - cron: '30 17 * * *'   # 14:30 AR
+    - cron: '0 18 * * *'    # 15:00 AR
+    - cron: '30 18 * * *'   # 15:30 AR
+    - cron: '0 19 * * *'    # 16:00 AR
   workflow_dispatch:
+    inputs:
+      motivo:
+        description: 'Motivo (opcional)'
+        required: false
+        default: 'Manual'
 
 jobs:
   actualizar-precios:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
     permissions:
       contents: write
 
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verificar si ya hay datos de hoy
+        id: check_fecha
+        run: |
+          HOY=$(TZ='America/Argentina/Buenos_Aires' date '+%Y-%m-%d')
+          echo "Hoy: $HOY"
+          FECHA_JSON=$(python3 -c "
+          import json, sys
+          try:
+              d = json.load(open('precios_viedma_hoy.json'))
+              print(d.get('fecha',''))
+          except: print('')
+          ")
+          echo "JSON tiene: $FECHA_JSON"
+          if [ "$FECHA_JSON" = "$HOY" ]; then
+            echo "ya_actualizado=true" >> $GITHUB_OUTPUT
+            echo "Ya hay datos de hoy. Saliendo."
+          else
+            echo "ya_actualizado=false" >> $GITHUB_OUTPUT
+            echo "Datos desactualizados. Actualizando..."
+          fi
 
       - name: Configurar Python
+        if: steps.check_fecha.outputs.ya_actualizado == 'false'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Instalar dependencias
+        if: steps.check_fecha.outputs.ya_actualizado == 'false'
         run: pip install requests
 
-      - name: Ejecutar script de actualización
+      - name: Ejecutar script
+        if: steps.check_fecha.outputs.ya_actualizado == 'false'
         run: python actualizar_precios.py
 
-      - name: Guardar precios en el repositorio
+      - name: Guardar en repositorio
+        if: steps.check_fecha.outputs.ya_actualizado == 'false'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull origin main --no-rebase
           git add precios_viedma_hoy.json
-          git diff --staged --quiet || git commit -m "✅ Precios actualizados $(date '+%Y-%m-%d %H:%M UTC')"
+          git diff --staged --quiet && echo "Sin cambios." && exit 0
+          git commit -m "Precios $(TZ='America/Argentina/Buenos_Aires' date '+%Y-%m-%d %H:%M AR')"
+          git pull --rebase origin main
           git push
