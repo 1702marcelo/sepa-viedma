@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Precios Viedma</title>
+<style>
+:root{
+  --azul:#1a73e8;--verde:#2e7d32;--verde-bg:#e8f5e9;
+  --rojo:#c62828;--rojo-bg:#ffebee;--naranja:#e65100;
+  --morado:#6200ea;--morado-bg:#ede7f6;
+  --gris:#f5f5f5;--borde:#e0e0e0;--txt:#212121;--txt2:#616161;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:var(--txt);min-height:100vh}
+
+/* ── HEADER ── */
+header{background:var(--azul);color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:17px;font-weight:700}
+.hbtns{display:flex;align-items:center;gap:6px}
+.hbtn{background:rgba(255,255,255,.2);border:none;color:#fff;padding:7px 11px;border-radius:18px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.hbtn .badge{background:#f44336;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:none;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.hbtn .badge.vis{display:flex}
+.hbtn.fav-btn{background:rgba(255,200,200,.25)}
+
+/* ── LOADING ── */
+#loading{text-align:center;padding:60px 20px}
+.spinner{width:44px;height:44px;border:5px solid var(--borde);border-top-color:var(--azul);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 18px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin-s{width:20px;height:20px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle;margin-right:7px}
+
+/* ── MAIN ── */
+#pantalla-main{padding:14px;display:none}
+.fecha-badge{background:#fff;border:1px solid var(--borde);border-radius:8px;padding:9px 13px;margin-bottom:12px;font-size:12px;color:var(--txt2);display:flex;align-items:center;gap:7px}
+.fecha-badge span{font-weight:600;color:var(--verde)}
+
+/* ── LOCAL ACTIVO ── */
+#local-activo{background:var(--verde-bg);border:1px solid #a5d6a7;border-radius:10px;padding:10px 13px;margin-bottom:12px;font-size:12px;display:none;align-items:center;gap:8px}
+#local-activo.vis{display:flex}
+.local-nom{font-weight:700;color:var(--verde);flex:1}
+#btn-cambiar-local{background:none;border:1px solid #81c784;color:var(--verde);border-radius:8px;padding:4px 9px;font-size:11px;cursor:pointer;white-space:nowrap}
+
+/* ── BOTÓN IA ── */
+#btn-ia{width:100%;background:linear-gradient(135deg,var(--morado),#9c27b0);color:#fff;border:none;padding:18px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:11px;box-shadow:0 4px 14px rgba(98,0,234,.32);transition:transform .1s}
+#btn-ia:active{transform:scale(.97)}
+#btn-ia:disabled{opacity:.7;transform:none}
+#ia-estado{background:#fff;border:1px solid var(--borde);border-radius:9px;padding:11px 13px;margin-bottom:11px;font-size:13px;color:var(--txt2);display:none;align-items:center;gap:8px}
+#ia-estado.vis{display:flex}
+#foto-input{display:none}
+
+/* ── BÚSQUEDA ── */
+.search-wrap{position:relative;margin-bottom:14px}
+.search-row{display:flex;gap:8px}
+.search-row input{flex:1;padding:12px 14px;border:2px solid var(--borde);border-radius:10px;font-size:15px;outline:none;transition:border-color .2s}
+.search-row input:focus{border-color:var(--azul)}
+.search-row button{background:var(--azul);color:#fff;border:none;padding:12px 16px;border-radius:10px;font-size:14px;cursor:pointer;font-weight:600;white-space:nowrap}
+/* autocomplete */
+#autocomplete{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--borde);border-radius:0 0 10px 10px;box-shadow:0 6px 18px rgba(0,0,0,.12);z-index:150;max-height:280px;overflow-y:auto;display:none}
+#autocomplete.vis{display:block}
+.ac-item{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;border-bottom:1px solid var(--gris);transition:background .1s}
+.ac-item:last-child{border-bottom:none}
+.ac-item:active{background:var(--gris)}
+.ac-ean4{font-size:22px;font-weight:800;color:var(--azul);width:44px;text-align:center;flex-shrink:0}
+.ac-desc{flex:1;font-size:13px;line-height:1.4}
+.ac-marca{font-size:11px;color:var(--txt2);margin-top:1px}
+
+/* ── RESULTADOS ── */
+.prod-header{background:#fff;border-radius:12px;padding:13px;margin-bottom:9px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.prod-nom{font-size:15px;font-weight:700;margin-bottom:3px}
+.prod-meta{font-size:12px;color:var(--txt2);margin-bottom:3px}
+.prod-ean{font-size:11px;color:#bbb;font-family:monospace}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:9px;margin-bottom:7px}
+.tag.ia{background:var(--morado-bg);color:var(--morado)}
+.tag.mejor{background:var(--verde-bg);color:var(--verde)}
+.tag.manual-item{background:#fff3e0;color:var(--naranja)}
+
+.com-card{background:#fff;border-radius:12px;padding:13px;margin-bottom:9px;box-shadow:0 1px 4px rgba(0,0,0,.07);border-left:4px solid var(--azul);position:relative}
+.com-card.es-mejor{border-left-color:var(--verde)}
+.com-card.es-local{border:2px solid var(--verde);border-left-width:4px}
+.local-aqui{display:inline-block;background:var(--verde-bg);color:var(--verde);font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;margin-bottom:7px}
+.otro-local-warn{background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;padding:7px 10px;font-size:11px;color:var(--naranja);margin-top:8px;display:none}
+.com-nom{font-size:15px;font-weight:700;margin-bottom:2px}
+.com-dir{font-size:12px;color:var(--txt2);margin-bottom:9px;line-height:1.5}
+.p-fila{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px}
+.p-label{font-size:12px;color:var(--txt2);flex:1;padding-top:3px}
+.p-val{font-size:19px;font-weight:700}
+.p-val.promo{color:var(--verde)}
+.pbadge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;margin-bottom:2px}
+.pbadge.a{background:var(--verde-bg);color:#1b5e20}
+.pbadge.b{background:var(--morado-bg);color:#4a148c}
+.leyenda{font-size:11px;color:var(--txt2);margin-top:2px;line-height:1.4}
+.sin-promo{color:#ccc;font-size:11px;font-style:italic;margin-bottom:5px}
+.card-footer{display:flex;gap:8px;margin-top:10px;align-items:center}
+.btn-add{flex:1;background:var(--verde);color:#fff;border:none;padding:10px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;line-height:1.3;text-align:left}
+.btn-add:active{opacity:.85}
+.btn-fav{background:none;border:1px solid var(--borde);width:42px;height:42px;border-radius:9px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
+.btn-fav:active{background:var(--gris)}
+.btn-fav.active{background:#fff0f0;border-color:#ffcdd2}
+
+/* ── MATCHES ── */
+.match-list{background:#fff;border-radius:12px;padding:13px;margin-bottom:9px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.match-list h3{font-size:14px;font-weight:700;margin-bottom:9px}
+.match-item{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px solid var(--gris);cursor:pointer}
+.match-item:last-child{border-bottom:none}
+.match-item:active{background:var(--gris)}
+.mi-desc{flex:1;font-size:13px;line-height:1.4}
+.mi-marca{font-size:11px;color:var(--txt2);margin-top:1px}
+.mi-arr{color:var(--azul);font-size:20px;flex-shrink:0;margin-top:1px}
+
+/* ── MODALES ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;overflow-y:auto}
+.modal-bg.vis{display:block}
+.modal-wrap{background:#fff;margin:16px 10px 30px;border-radius:16px;overflow:hidden}
+.modal-head{color:#fff;padding:15px;display:flex;align-items:center;justify-content:space-between}
+.modal-head.azul{background:var(--azul)}
+.modal-head.verde{background:var(--verde)}
+.modal-head.morado{background:var(--morado)}
+.modal-head.rojo{background:#b71c1c}
+.modal-head h2{font-size:16px}
+.modal-close{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1}
+.modal-body{padding:13px}
+
+/* ── CARRITO ITEMS ── */
+.ci{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-bottom:1px solid var(--borde)}
+.ci-info{flex:1}
+.ci-nom{font-size:13px;font-weight:600;margin-bottom:2px}
+.ci-sub{font-size:12px;color:var(--txt2);line-height:1.4}
+.ci-del{background:none;border:none;color:var(--rojo);font-size:21px;cursor:pointer;flex-shrink:0;padding:2px}
+.ci.manual-item .ci-nom::before{content:"🏷️ ";font-size:11px}
+
+/* ── TOTAL ── */
+.total-box{background:var(--gris);border-radius:10px;padding:13px;margin:13px 0}
+.total-box h3{font-size:13px;color:var(--txt2);margin-bottom:9px;font-weight:600}
+.t-row{display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px}
+.t-row.big{font-weight:700;font-size:17px;color:var(--verde);border-top:1px solid var(--borde);margin-top:7px;padding-top:7px}
+
+/* ── COMPARACIÓN CARRITO ── */
+.comp-titulo{font-size:14px;font-weight:700;margin:13px 0 8px}
+.comp-row{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px;border-radius:9px;margin-bottom:6px;gap:8px}
+.comp-row.mas-barato{background:var(--verde-bg)}
+.comp-row.mas-caro{background:var(--rojo-bg)}
+.comp-row.igual{background:var(--gris)}
+.comp-izq{flex:1}
+.comp-nom{font-weight:600;font-size:13px}
+.comp-dir{font-size:11px;color:var(--txt2);margin-top:1px}
+.comp-falta{font-size:11px;color:#999;margin-top:2px}
+.comp-der{text-align:right;flex-shrink:0}
+.comp-total{font-weight:700;font-size:14px}
+.c-verde{color:var(--verde);font-size:12px;font-weight:600}
+.c-rojo{color:var(--rojo);font-size:12px;font-weight:600}
+.c-azul{color:var(--azul);font-size:12px;font-weight:600}
+
+/* ── FAVORITOS ── */
+.fav-item{display:flex;align-items:flex-start;gap:9px;padding:10px 0;border-bottom:1px solid var(--borde);cursor:pointer}
+.fav-item:last-child{border-bottom:none}
+.fav-item:active{background:var(--gris)}
+.fav-desc{flex:1;font-size:13px;line-height:1.4;font-weight:600}
+.fav-marca{font-size:11px;color:var(--txt2);margin-top:2px}
+.fav-del{background:none;border:none;font-size:20px;cursor:pointer;flex-shrink:0}
+
+/* ── MISC ── */
+.err-box{background:var(--rojo-bg);border:1px solid #ffcdd2;border-radius:10px;padding:14px;color:var(--rojo);font-size:14px;margin:9px 0;line-height:1.6}
+.empty-state{text-align:center;padding:36px 16px;color:var(--txt2)}
+.empty-state .big{font-size:42px;margin-bottom:10px}
+.btn-vac{width:100%;background:#fff;border:1px solid var(--borde);color:var(--rojo);padding:11px;border-radius:9px;font-size:13px;cursor:pointer;margin-top:11px}
+.no-result{text-align:center;padding:36px 20px;color:var(--txt2)}
+.aviso-local{background:#fff8e1;border:1px solid #ffe082;border-radius:9px;padding:9px 12px;font-size:12px;color:#5d4037;margin-bottom:9px;display:none}
+.aviso-local.vis{display:block}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛒 Precios Viedma</h1>
+  <div class="hbtns">
+    <button class="hbtn fav-btn" onclick="abrirFavs()">❤️ <span id="fav-badge" class="badge">0</span></button>
+    <button class="hbtn" onclick="abrirCarrito()">🧺 <span id="car-badge" class="badge">0</span></button>
+    <button class="hbtn" onclick="abrirConfig()" style="padding:7px 10px">⚙️</button>
+  </div>
+</header>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p style="color:var(--txt2);font-size:15px">Cargando precios...</p>
+  <p id="loading-sub" style="font-size:12px;margin-top:8px;color:#aaa"></p>
+</div>
+
+<div id="pantalla-main">
+  <div class="fecha-badge">📅 Datos del: <span id="fecha-datos">—</span></div>
+
+  <!-- Local activo -->
+  <div id="local-activo">
+    <span style="font-size:18px">🏪</span>
+    <span class="local-nom" id="local-nom-txt">—</span>
+    <button id="btn-cambiar-local" onclick="cambiarLocal()">Cambiar</button>
+  </div>
+
+  <!-- Aviso ítem de otro local -->
+  <div class="aviso-local" id="aviso-local">
+    ⚠️ Este producto es de un local distinto al tuyo. Igual podés agregarlo.
+  </div>
+
+  <!-- Botón IA -->
+  <button id="btn-ia" onclick="document.getElementById('foto-input').click()">
+    <span style="font-size:24px">🤖</span> Fotografiar producto o código
+  </button>
+  <div id="ia-estado"><span class="spin-s"></span><span id="ia-txt">Procesando...</span></div>
+  <input type="file" id="foto-input" accept="image/*" capture="environment" onchange="procesarConIA(this)">
+
+  <!-- Búsqueda manual con autocomplete -->
+  <div class="search-wrap">
+    <div class="search-row">
+      <input type="text" id="input-ean" placeholder="Código o nombre del producto..."
+             inputmode="numeric" autocomplete="off"
+             oninput="onSearchInput(this.value)"
+             onkeypress="if(event.key==='Enter'){cerrarAC();buscarManual()}"
+             onfocus="onSearchInput(this.value)"
+             onblur="setTimeout(cerrarAC,180)">
+      <button onclick="buscarManual()">Buscar</button>
+    </div>
+    <div id="autocomplete"></div>
+  </div>
+
+  <div id="resultados"></div>
+</div>
+
+<!-- Modal Carrito -->
+<div id="modal-carrito" class="modal-bg">
+  <div class="modal-wrap">
+    <div class="modal-head azul"><h2>🧺 Mi carrito</h2><button class="modal-close" onclick="cerrarCarrito()">✕</button></div>
+    <div class="modal-body" id="carrito-body"></div>
+  </div>
+</div>
+
+<!-- Modal Favoritos -->
+<div id="modal-favs" class="modal-bg">
+  <div class="modal-wrap">
+    <div class="modal-head" style="background:#b71c1c"><h2>❤️ Mis favoritos</h2><button class="modal-close" onclick="cerrarFavs()">✕</button></div>
+    <div class="modal-body" id="favs-body"></div>
+  </div>
+</div>
+
+<!-- Modal Config -->
+<div id="modal-config" class="modal-bg">
+  <div class="modal-wrap">
+    <div class="modal-head morado"><h2>⚙️ Configuración</h2><button class="modal-close" onclick="cerrarConfig()">✕</button></div>
+    <div class="modal-body">
+      <label style="font-size:13px;font-weight:600;color:var(--txt2);display:block;margin-bottom:6px">API Key de OpenAI</label>
+      <input type="password" id="input-apikey" placeholder="sk-proj-..."
+             style="width:100%;padding:12px;border:2px solid var(--borde);border-radius:9px;font-size:14px;outline:none;font-family:monospace">
+      <p style="font-size:12px;color:var(--txt2);margin-top:6px;line-height:1.5">Para reconocer productos por foto. Se guarda en el navegador.</p>
+      <button onclick="guardarConfig()"
+        style="width:100%;background:var(--morado);color:#fff;border:none;padding:13px;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;margin-top:12px">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ═══════════════════════════════════════════════════════════
+let DATOS      = null;   // datos del JSON
+let EAN_INDEX  = null;   // Map ean → prod para búsqueda rápida
+let OPENAI_KEY = localStorage.getItem('sepa_apikey') || '';
+
+// ── Persistencia ──────────────────────────────────────────
+function cargarLS(key, def){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):def; }catch(e){ return def; } }
+function guardarLS(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); }catch(e){} }
+
+let carrito     = cargarLS('sepa_carrito',{});
+let carritoKey  = cargarLS('sepa_carritoKey',null);
+let favoritos   = cargarLS('sepa_favoritos',{});
+
+// ═══════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════
+function nomDir(skey){
+  const s=DATOS&&DATOS.sucursales[skey];
+  if(!s) return skey;
+  const nom=s.bandera||s.nombre||s.razon||'(sin nombre)';
+  const dir=[s.calle,s.numero].filter(Boolean).join(' ');
+  const loc=s.localidad||'';
+  return dir?`${nom} — ${dir}${loc?', '+loc:''}`:`${nom}${loc?' ('+loc+')':''}`;
+}
+function precioMin(p){
+  const v=[p.precio_lista,p.promo1_precio,p.promo2_precio].filter(x=>x!=null&&x>0);
+  return v.length?Math.min(...v):null;
+}
+function horHoy(h){
+  if(!h)return null;
+  const d=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][new Date().getDay()];
+  const v=h[d];
+  return v?(v.toLowerCase()==='cerrado'?'🔒 Cerrado hoy':v):null;
+}
+function ean4(ean){ return String(ean).slice(-4); }
+
+// ═══════════════════════════════════════════════════════════
+//  CARGA DE DATOS
+// ═══════════════════════════════════════════════════════════
+async function cargarDatos(){
+  try{
+    document.getElementById('loading-sub').textContent='Leyendo precios_viedma_hoy.json...';
+    const r=await fetch('precios_viedma_hoy.json');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    DATOS=await r.json();
+    // Construir índice de búsqueda
+    EAN_INDEX=new Map(Object.entries(DATOS.productos||{}));
+    document.getElementById('loading').style.display='none';
+    document.getElementById('pantalla-main').style.display='block';
+    document.getElementById('fecha-datos').textContent=
+      (DATOS.fecha||'?')+(DATOS.hora?' · '+DATOS.hora:'');
+    actualizarBadges();
+    actualizarLocalActivo();
+  }catch(e){
+    document.getElementById('loading').innerHTML=`
+      <div class="err-box"><strong>No se cargaron los precios.</strong><br><br>
+      1. Ejecutá <code>2_ACTUALIZAR_PRECIOS.bat</code><br>
+      2. Ejecutá <code>3_INICIAR_SERVIDOR.bat</code><br>
+      3. Recargá la página<br><br>Error: ${e.message}</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AUTOCOMPLETE
+// ═══════════════════════════════════════════════════════════
+let acTimer=null;
+function onSearchInput(val){
+  clearTimeout(acTimer);
+  val=val.trim();
+  if(!val||!EAN_INDEX){ cerrarAC(); return; }
+  acTimer=setTimeout(()=>calcAC(val),120);
+}
+
+function calcAC(val){
+  if(!EAN_INDEX){ cerrarAC(); return; }
+  const esNum=/^\d+$/.test(val);
+  const valLow=val.toLowerCase();
+  const matches=[];
+
+  for(const [ean,prod] of EAN_INDEX){
+    if(!prod.sucursales||!Object.keys(prod.sucursales).length) continue;
+    let ok=false;
+    if(esNum){
+      // Coincide si el EAN termina con esos dígitos O los contiene
+      ok=String(ean).endsWith(val)||String(ean).includes(val);
+    } else {
+      const txt=((prod.descripcion||'')+' '+(prod.marca||'')).toLowerCase();
+      ok=valLow.split(' ').every(p=>p.length<2||txt.includes(p));
+    }
+    if(ok) matches.push({ean,prod});
+    if(matches.length>30) break;
+  }
+
+  if(!matches.length||matches.length>30){ cerrarAC(); return; }
+
+  // Ordenar: primero los que terminan exacto
+  if(esNum) matches.sort((a,b)=>{
+    const ae=String(a.ean).endsWith(val)?0:1;
+    const be=String(b.ean).endsWith(val)?0:1;
+    return ae-be;
+  });
+
+  const ac=document.getElementById('autocomplete');
+  ac.innerHTML=matches.map(({ean,prod})=>`
+    <div class="ac-item" onmousedown="elegirAC('${ean}')">
+      <span class="ac-ean4">${ean4(ean)}</span>
+      <div class="ac-desc">
+        ${prod.descripcion||'(sin nombre)'}
+        <div class="ac-marca">${prod.marca||''}</div>
+      </div>
+    </div>`).join('');
+  ac.classList.add('vis');
+}
+
+function elegirAC(ean){
+  document.getElementById('input-ean').value='';
+  cerrarAC();
+  buscarEAN(ean,false);
+}
+function cerrarAC(){
+  const ac=document.getElementById('autocomplete');
+  ac.classList.remove('vis');
+  ac.innerHTML='';
+}
+function buscarManual(){
+  const v=document.getElementById('input-ean').value.trim();
+  cerrarAC();
+  if(!v)return;
+  document.getElementById('input-ean').value='';
+  // Si es numérico puro → buscar EAN, sino texto
+  if(/^\d+$/.test(v)) buscarEAN(v,false);
+  else buscarPorTexto(v);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LOCAL ACTIVO
+// ═══════════════════════════════════════════════════════════
+function actualizarLocalActivo(){
+  const div=document.getElementById('local-activo');
+  const txt=document.getElementById('local-nom-txt');
+  if(carritoKey&&DATOS){
+    txt.textContent=nomDir(carritoKey);
+    div.classList.add('vis');
+  } else {
+    div.classList.remove('vis');
+  }
+}
+function cambiarLocal(){
+  if(!confirm('¿Cambiar el local? Esto vaciará el carrito actual.'))return;
+  vaciarCarrito(true);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  IA — PROCESAR FOTO
+// ═══════════════════════════════════════════════════════════
+async function procesarConIA(input){
+  const file=input.files&&input.files[0];
+  const estadoDiv=document.getElementById('ia-estado');
+  const estadoTxt=document.getElementById('ia-txt');
+  const btnIa=document.getElementById('btn-ia');
+  const divRes=document.getElementById('resultados');
+
+  function setEstado(txt){
+    estadoTxt.textContent=txt;
+    estadoDiv.classList.add('vis');
+    divRes.innerHTML=`<div style="background:var(--morado-bg);border-radius:10px;padding:13px;font-size:13px;color:var(--morado);display:flex;align-items:center;gap:8px">
+      <span style="font-size:20px">🤖</span><span>${txt}</span></div>`;
+  }
+  function setError(msg){
+    estadoDiv.classList.remove('vis');
+    btnIa.disabled=false;
+    divRes.innerHTML=`<div class="err-box"><strong>❌ ${msg}</strong><br><br>Podés buscar el código a mano.</div>`;
+  }
+
+  if(!file){ setError('No se seleccionó imagen.'); return; }
+  setTimeout(()=>{ try{input.value='';}catch(e){} },100);
+  setEstado('Imagen recibida ('+Math.round(file.size/1024)+' KB). Preparando...');
+  btnIa.disabled=true;
+
+  if(!OPENAI_KEY||OPENAI_KEY.length<20){
+    // Primera vez: mostrar mensaje claro y abrir config directamente
+    document.getElementById('resultados').innerHTML=`
+      <div style="background:#fff8e1;border:2px solid #ffe082;border-radius:12px;padding:20px;text-align:center;margin-top:8px">
+        <div style="font-size:40px;margin-bottom:10px">🔑</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">Primera configuración</div>
+        <div style="font-size:13px;color:#5d4037;line-height:1.6">
+          Para usar el reconocimiento por foto necesitás ingresar tu API key de OpenAI.<br><br>
+          Se guarda en este celular y no se sube a ningún lado.<br><br>
+          <strong>Tocá ⚙️ arriba a la derecha para configurarla.</strong>
+        </div>
+      </div>`;
+    estadoDiv.classList.remove('vis');
+    btnIa.disabled=false;
+    abrirConfig(); return;
+  }
+
+  try{
+    const base64=await new Promise((res,rej)=>{
+      const reader=new FileReader();
+      reader.onload=()=>res(reader.result.split(',')[1]);
+      reader.onerror=rej;
+      reader.readAsDataURL(file);
+    });
+    const mime=file.type||'image/jpeg';
+    setEstado('Enviando a OpenAI ('+Math.round(base64.length*.75/1024)+' KB)...');
+
+    const resp=await fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+OPENAI_KEY},
+      body:JSON.stringify({
+        model:'gpt-4o-mini',
+        max_tokens:120,
+        messages:[{role:'user',content:[
+          {type:'text',text:`Analizá la imagen. Tres posibilidades:
+
+1) Si ves un código de barras (EAN/UPC) claramente legible: respondé SOLO los dígitos. Ej: "7798082600017"
+
+2) Si ves una etiqueta de precio de producto a granel o sin código de barras (fruta, verdura, fruto seco, fiambre, etc.) con nombre y precio: respondé exactamente "ETIQUETA: [nombre del producto]|[precio en números]". Ej: "ETIQUETA: Naranja por kg|890.50" o "ETIQUETA: Nueces 300g|2150.00"
+
+3) Si ves un producto envasado pero sin código visible: respondé "PRODUCTO: [nombre y marca breve]". Ej: "PRODUCTO: Leche entera La Serenísima 1L"
+
+Solo respondé lo indicado, sin texto extra.`},
+          {type:'image_url',image_url:{url:'data:'+mime+';base64,'+base64,detail:'low'}}
+        ]}]
+      })
+    });
+
+    if(!resp.ok){
+      const e=await resp.json().catch(()=>({}));
+      throw new Error('OpenAI '+resp.status+': '+(e.error?.message||resp.statusText));
+    }
+    const data=await resp.json();
+    const texto=(data.choices?.[0]?.message?.content||'').trim();
+
+    estadoDiv.classList.remove('vis');
+    btnIa.disabled=false;
+    if(!texto) throw new Error('Respuesta vacía');
+
+    setEstado('IA: "'+texto.substring(0,70)+'"');
+
+    const soloNum=texto.replace(/\s/g,'');
+    if(/^\d{6,14}$/.test(soloNum)){
+      toast('✅ Código leído: '+soloNum);
+      buscarEAN(soloNum,true);
+    } else if(texto.toUpperCase().startsWith('ETIQUETA:')){
+      const partes=texto.replace(/^ETIQUETA:\s*/i,'').split('|');
+      const nombre=partes[0]?.trim()||'Producto sin nombre';
+      const precio=parseFloat(partes[1])||0;
+      agregarItemManual(nombre,precio);
+    } else if(texto.toUpperCase().startsWith('PRODUCTO:')){
+      const termino=texto.replace(/^PRODUCTO:\s*/i,'').trim();
+      toast('🔍 Buscando: '+termino);
+      buscarPorTexto(termino);
+    } else {
+      buscarPorTexto(texto);
+    }
+  }catch(e){
+    setError(e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BÚSQUEDA EAN
+// ═══════════════════════════════════════════════════════════
+function buscarEAN(ean,porIA){
+  const div=document.getElementById('resultados');
+  const prod=DATOS&&DATOS.productos[ean];
+  if(!prod){
+    div.innerHTML=`<div class="no-result"><div class="big">🔍</div>
+      <strong>Producto no encontrado</strong><br><small style="color:#aaa">EAN: ${ean}</small><br><br>
+      <span style="font-size:13px">Sin precios en Viedma/Patagones hoy.</span></div>`;
+    div.scrollIntoView({behavior:'smooth'});return;
+  }
+  mostrarProducto(ean,prod,porIA?'ia-barcode':null);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BÚSQUEDA POR TEXTO
+// ═══════════════════════════════════════════════════════════
+function buscarPorTexto(termino){
+  const div=document.getElementById('resultados');
+  if(!DATOS)return;
+  const pals=termino.toLowerCase().split(/\s+/).filter(p=>p.length>2);
+  const matches=[];
+  for(const [ean,prod] of (EAN_INDEX||new Map())){
+    if(!prod.sucursales||!Object.keys(prod.sucursales).length)continue;
+    const txt=((prod.descripcion||'')+' '+(prod.marca||'')).toLowerCase();
+    const score=pals.filter(p=>txt.includes(p)).length;
+    if(score>0) matches.push({ean,prod,score});
+  }
+  matches.sort((a,b)=>b.score-a.score);
+  const top=matches.slice(0,10);
+  if(!top.length){
+    div.innerHTML=`<div class="no-result"><div class="big">🤷</div>
+      <strong>Sin coincidencias</strong><br>"${termino}"<br><br>
+      <span style="font-size:13px">Probá ingresando el código a mano.</span></div>`;
+    div.scrollIntoView({behavior:'smooth'});return;
+  }
+  if(top.length===1&&top[0].score>=pals.length){
+    mostrarProducto(top[0].ean,top[0].prod,'ia-product');return;
+  }
+  let h=`<div class="match-list">
+    <h3>🤖 Resultados para: "${termino}"<br>
+      <span style="font-weight:400;font-size:12px;color:var(--txt2)">Tocá el producto correcto:</span></h3>`;
+  top.forEach(({ean,prod})=>{
+    h+=`<div class="match-item" onclick="mostrarProducto('${ean}',DATOS.productos['${ean}'],'ia-product')">
+      <div class="mi-desc">${prod.descripcion}<div class="mi-marca">${prod.marca||''} · ${ean}</div></div>
+      <span class="mi-arr">›</span></div>`;
+  });
+  h+=`</div>`;
+  div.innerHTML=h;
+  div.scrollIntoView({behavior:'smooth'});
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MOSTRAR PRODUCTO
+// ═══════════════════════════════════════════════════════════
+function mostrarProducto(ean,prod,origen){
+  const div=document.getElementById('resultados');
+  const entradas=Object.entries(prod.sucursales||{});
+  if(!entradas.length){
+    div.innerHTML=`<div class="no-result">Sin datos de precio.</div>`;return;
+  }
+  entradas.sort((a,b)=>(a[1].precio_lista??9e9)-(b[1].precio_lista??9e9));
+  const esFav=!!favoritos[ean];
+
+  const origenTag=origen==='ia-barcode'?`<div class="tag ia">🤖 IA leyó el código</div>`:
+                  origen==='ia-product'?`<div class="tag ia">🤖 IA identificó el producto</div>`:'';
+
+  let h=`<div class="prod-header">
+    ${origenTag}
+    <div class="prod-nom">${prod.descripcion}</div>
+    <div class="prod-meta">Marca: ${prod.marca||'—'} · ${entradas.length} local(es)</div>
+    <div class="prod-ean">EAN: ${ean}</div>
+  </div>`;
+
+  entradas.forEach(([skey,p],i)=>{
+    const s=DATOS.sucursales[skey];if(!s)return;
+    const nom=s.bandera||s.nombre||s.razon||'(sin nombre)';
+    const dir=[s.calle,s.numero].filter(Boolean).join(' ');
+    const loc=s.localidad||'';
+    const dirStr=[dir,loc].filter(Boolean).join(', ')||'Sin dirección';
+    const hor=horHoy(s.horarios);
+    const pl=p.precio_lista,p1=p.promo1_precio,l1=p.promo1_leyenda,p2=p.promo2_precio,l2=p.promo2_leyenda;
+    const pm=precioMin(p);
+    const esLocal=carritoKey&&skey===carritoKey;
+    const esOtroLocal=carritoKey&&skey!==carritoKey;
+
+    h+=`<div class="com-card ${i===0?'es-mejor':''} ${esLocal?'es-local':''}">
+      ${i===0?'<div class="tag mejor">✅ MENOR PRECIO DE LISTA</div>':''}
+      ${esLocal?'<div class="local-aqui">📍 Tu local actual</div>':''}
+      <div class="com-nom">${nom}</div>
+      <div class="com-dir">${dirStr}${hor?'<br>🕐 Hoy: '+hor:''}</div>
+      <div class="p-fila"><span class="p-label">Precio lista</span>
+        <span class="p-val">${pl!=null?'$'+pl.toFixed(2):'—'}</span></div>`;
+
+    if(p1!=null) h+=`<div class="p-fila"><div>
+        <div class="pbadge a">PROMO A — general</div>
+        ${l1?`<div class="leyenda">${l1}</div>`:''}
+      </div><span class="p-val promo">$${p1.toFixed(2)}</span></div>`;
+    if(p2!=null) h+=`<div class="p-fila"><div>
+        <div class="pbadge b">PROMO B — especial</div>
+        ${l2?`<div class="leyenda">${l2}</div>`:''}
+      </div><span class="p-val promo">$${p2.toFixed(2)}</span></div>`;
+    if(!p1&&!p2) h+=`<div class="sin-promo">Sin promociones vigentes</div>`;
+
+    if(esOtroLocal){
+      h+=`<div class="otro-local-warn" style="display:block">
+        ⚠️ Este local es distinto a tu local actual (${nomDir(carritoKey).split('—')[0].trim()})
+      </div>`;
+    }
+
+    h+=`<div class="card-footer">
+      <button class="btn-add" onclick="agregarCarrito('${ean}','${skey}',${pm??pl??0})">
+        + Carrito<br><small style="font-weight:400;font-size:10px">${nom} — ${dirStr.split(',')[0]}</small>
+      </button>
+      <button class="btn-fav ${esFav?'active':''}" id="fav-btn-${ean}-${i}"
+        onclick="toggleFav('${ean}','${ean}-${i}')">${esFav?'❤️':'🤍'}</button>
+    </div></div>`;
+  });
+
+  div.innerHTML=h;
+  div.scrollIntoView({behavior:'smooth'});
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ÍTEM MANUAL (etiqueta sin código)
+// ═══════════════════════════════════════════════════════════
+function agregarItemManual(nombre,precio){
+  const id='manual_'+Date.now();
+  carrito[id]={nombre,skey:null,precio,manual:true};
+  guardarLS('sepa_carrito',carrito);
+  actualizarBadges();
+  const div=document.getElementById('resultados');
+  div.innerHTML=`<div style="background:var(--verde-bg);border-radius:12px;padding:16px;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🏷️</div>
+    <div style="font-weight:700;font-size:16px">${nombre}</div>
+    <div style="font-size:22px;font-weight:700;color:var(--verde);margin:8px 0">$${precio.toFixed(2)}</div>
+    <div style="font-size:13px;color:var(--txt2)">Ítem personalizado agregado al carrito</div>
+  </div>`;
+  toast('🏷️ Agregado: '+nombre);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FAVORITOS
+// ═══════════════════════════════════════════════════════════
+function toggleFav(ean,btnSuffix){
+  const prod=DATOS&&DATOS.productos[ean];
+  if(favoritos[ean]){
+    delete favoritos[ean];
+    toast('💔 Quitado de favoritos');
+  } else {
+    favoritos[ean]={descripcion:prod?.descripcion||ean,marca:prod?.marca||''};
+    toast('❤️ Guardado en favoritos');
+  }
+  guardarLS('sepa_favoritos',favoritos);
+  // Actualizar todos los botones de corazón del producto visible
+  document.querySelectorAll(`[id^="fav-btn-${ean}-"]`).forEach(btn=>{
+    btn.textContent=favoritos[ean]?'❤️':'🤍';
+    btn.classList.toggle('active',!!favoritos[ean]);
+  });
+  actualizarBadges();
+}
+
+function abrirFavs(){
+  renderFavs();
+  document.getElementById('modal-favs').classList.add('vis');
+  document.body.style.overflow='hidden';
+}
+function cerrarFavs(){
+  document.getElementById('modal-favs').classList.remove('vis');
+  document.body.style.overflow='';
+}
+function renderFavs(){
+  const body=document.getElementById('favs-body');
+  const keys=Object.keys(favoritos);
+  if(!keys.length){
+    body.innerHTML=`<div class="empty-state"><div class="big">🤍</div>
+      <strong>Sin favoritos todavía</strong><br>
+      <span style="font-size:13px">Tocá el corazón 🤍 en cualquier producto.</span></div>`;
+    return;
+  }
+  let h='';
+  keys.forEach(ean=>{
+    const f=favoritos[ean];
+    h+=`<div class="fav-item" onclick="cerrarFavs();buscarEAN('${ean}',false)">
+      <div style="flex:1">
+        <div class="fav-desc">${f.descripcion}</div>
+        <div class="fav-marca">${f.marca||''} · EAN: ${ean}</div>
+      </div>
+      <button class="fav-del" onclick="event.stopPropagation();quitarFav('${ean}')">💔</button>
+    </div>`;
+  });
+  body.innerHTML=h;
+}
+function quitarFav(ean){
+  delete favoritos[ean];
+  guardarLS('sepa_favoritos',favoritos);
+  actualizarBadges();
+  renderFavs();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CARRITO
+// ═══════════════════════════════════════════════════════════
+function agregarCarrito(ean,skey,precio){
+  const primerItem=!Object.keys(carrito).length;
+
+  // Si hay local activo y este ítem es de otro local → avisar
+  if(carritoKey&&skey&&skey!==carritoKey){
+    const av=document.getElementById('aviso-local');
+    av.classList.add('vis');
+    setTimeout(()=>av.classList.remove('vis'),4000);
+  }
+
+  carrito[ean]={nombre:DATOS.productos[ean]?.descripcion||ean,skey,precio,manual:false};
+
+  // El primer ítem que se agrega establece el local activo
+  if(primerItem&&skey){
+    carritoKey=skey;
+    guardarLS('sepa_carritoKey',carritoKey);
+    actualizarLocalActivo();
+  }
+
+  guardarLS('sepa_carrito',carrito);
+  actualizarBadges();
+  toast('✅ Agregado al carrito');
+}
+
+function actualizarBadges(){
+  const nc=Object.keys(carrito).length;
+  const nf=Object.keys(favoritos).length;
+  const bc=document.getElementById('car-badge');
+  const bf=document.getElementById('fav-badge');
+  bc.textContent=nc; bc.classList.toggle('vis',nc>0);
+  bf.textContent=nf; bf.classList.toggle('vis',nf>0);
+}
+
+function abrirCarrito(){
+  renderCarrito();
+  document.getElementById('modal-carrito').classList.add('vis');
+  document.body.style.overflow='hidden';
+}
+function cerrarCarrito(){
+  document.getElementById('modal-carrito').classList.remove('vis');
+  document.body.style.overflow='';
+}
+
+function renderCarrito(){
+  const body=document.getElementById('carrito-body');
+  const items=Object.entries(carrito);
+  if(!items.length){
+    body.innerHTML=`<div class="empty-state"><div class="big">🧺</div>
+      <strong>El carrito está vacío</strong><br>
+      <span style="font-size:13px">Escaneá o buscá un producto para empezar.</span></div>`;
+    return;
+  }
+
+  let h='';
+  items.forEach(([id,it])=>{
+    h+=`<div class="ci ${it.manual?'manual-item':''}">
+      <div class="ci-info">
+        <div class="ci-nom">${it.nombre}</div>
+        <div class="ci-sub">${it.skey?nomDir(it.skey):'Ítem personalizado'}<br>$${it.precio.toFixed(2)}</div>
+      </div>
+      <button class="ci-del" onclick="quitarItem('${id}')">🗑</button>
+    </div>`;
+  });
+
+  const totalActual=items.reduce((s,[,i])=>s+i.precio,0);
+  const sAct=carritoKey?DATOS.sucursales[carritoKey]:{};
+  const nomAct=sAct?(sAct.bandera||sAct.nombre||'(local actual)'):'(sin local)';
+  const dirAct=sAct?[sAct.calle,sAct.numero].filter(Boolean).join(' '):'';
+
+  h+=`<div class="total-box">
+    <h3>Total en: ${nomAct}${dirAct?' — '+dirAct:''}</h3>
+    <div class="t-row big"><span>TOTAL</span><span>$${totalActual.toFixed(2)}</span></div>
+  </div>`;
+
+  // Comparación con otros locales (solo ítems con skey)
+  const itemsSuc=items.filter(([,i])=>i.skey);
+  if(itemsSuc.length&&carritoKey){
+    const todas=new Set();
+    itemsSuc.forEach(([ean])=>{
+      const p=DATOS.productos[ean];
+      if(p)Object.keys(p.sucursales).forEach(k=>todas.add(k));
+    });
+    todas.delete(carritoKey);
+
+    const UMBRAL=1;
+    const tots=[];
+    todas.forEach(sk=>{
+      let tot=0,fal=0;
+      itemsSuc.forEach(([ean])=>{
+        const pr=DATOS.productos[ean]?.sucursales?.[sk]?.precio_lista;
+        if(pr!=null)tot+=pr;else fal++;
+      });
+      tots.push({sk,tot,fal,dif:tot-totalActual});
+    });
+    tots.sort((a,b)=>a.tot-b.tot);
+    const rel=tots.filter(({dif,fal})=>Math.abs(dif)>=UMBRAL||fal>0);
+
+    if(rel.length){
+      h+=`<div class="comp-titulo">📊 ¿Cuánto costaría en otros locales?</div>`;
+      rel.forEach(({sk,tot,fal,dif})=>{
+        const s=DATOS.sucursales[sk];if(!s)return;
+        const nom=s.bandera||s.nombre||s.razon||'(sin nombre)';
+        const dir=[s.calle,s.numero].filter(Boolean).join(' ');
+        const loc=s.localidad||'';
+        const dirStr=[dir,loc].filter(Boolean).join(', ')||'Sin dirección';
+        let cls,difH;
+        if(dif<-UMBRAL){
+          cls='mas-barato';
+          difH=`<span class="c-verde">▼ ahorrás $${Math.abs(dif).toFixed(2)}</span>`;
+        } else if(dif>UMBRAL){
+          cls='mas-caro';
+          difH=`<span class="c-rojo">▲ $${Math.abs(dif).toFixed(2)} más</span>`;
+        } else {
+          cls='igual';
+          difH=`<span class="c-azul">precio similar</span>`;
+        }
+        h+=`<div class="comp-row ${cls}">
+          <div class="comp-izq">
+            <div class="comp-nom">${nom}</div>
+            <div class="comp-dir">${dirStr}</div>
+            ${fal>0?`<div class="comp-falta">⚠️ ${fal} prod. no disponible(s)</div>`:''}
+          </div>
+          <div class="comp-der">
+            <div class="comp-total">$${tot.toFixed(2)}</div>${difH}
+          </div>
+        </div>`;
+      });
+    }
+  }
+
+  h+=`<button class="btn-vac" onclick="vaciarCarrito(false)">🗑 Vaciar carrito</button>`;
+  body.innerHTML=h;
+}
+
+function quitarItem(id){
+  delete carrito[id];
+  if(!Object.keys(carrito).length){
+    carritoKey=null;
+    guardarLS('sepa_carritoKey',null);
+    actualizarLocalActivo();
+  }
+  guardarLS('sepa_carrito',carrito);
+  actualizarBadges();
+  renderCarrito();
+}
+
+function vaciarCarrito(silencioso){
+  if(!silencioso&&!confirm('¿Vaciar el carrito?'))return;
+  carrito={};carritoKey=null;
+  guardarLS('sepa_carrito',{});
+  guardarLS('sepa_carritoKey',null);
+  actualizarBadges();
+  actualizarLocalActivo();
+  if(!silencioso){ cerrarCarrito(); toast('🗑 Carrito vaciado'); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════
+function abrirConfig(){
+  document.getElementById('input-apikey').value=OPENAI_KEY;
+  document.getElementById('modal-config').classList.add('vis');
+  document.body.style.overflow='hidden';
+}
+function cerrarConfig(){
+  document.getElementById('modal-config').classList.remove('vis');
+  document.body.style.overflow='';
+}
+function guardarConfig(){
+  const k=document.getElementById('input-apikey').value.trim();
+  if(k){ OPENAI_KEY=k; guardarLS('sepa_apikey',k); toast('✅ API key guardada'); }
+  cerrarConfig();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+function toast(msg){
+  document.querySelectorAll('.toast-el').forEach(t=>t.remove());
+  const t=document.createElement('div');t.className='toast-el';t.textContent=msg;
+  Object.assign(t.style,{position:'fixed',bottom:'22px',left:'50%',transform:'translateX(-50%)',
+    background:'#323232',color:'#fff',padding:'10px 20px',borderRadius:'22px',fontSize:'14px',
+    zIndex:'999',whiteSpace:'nowrap',boxShadow:'0 4px 12px rgba(0,0,0,.3)'});
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2800);
+}
+
+// ─── INICIO ───────────────────────────────────────────────
+cargarDatos();
+</script>
+</body>
+</html>
