@@ -35,7 +35,6 @@ jobs:
         id: check_fecha
         run: |
           HOY=$(TZ='America/Argentina/Buenos_Aires' date '+%Y-%m-%d')
-          echo "Hoy: $HOY"
           FECHA_JSON=$(python3 -c "
           import json
           try:
@@ -43,13 +42,12 @@ jobs:
               print(d.get('fecha',''))
           except: print('')
           ")
-          echo "JSON tiene: $FECHA_JSON"
+          echo "Hoy: $HOY — JSON tiene: $FECHA_JSON"
           if [ "$FECHA_JSON" = "$HOY" ]; then
             echo "ya_actualizado=true" >> $GITHUB_OUTPUT
             echo "Ya hay datos de hoy. Saliendo."
           else
             echo "ya_actualizado=false" >> $GITHUB_OUTPUT
-            echo "Datos desactualizados. Actualizando..."
           fi
 
       - name: Configurar Python
@@ -74,5 +72,5 @@ jobs:
           git add precios_viedma_hoy.json
           git diff --staged --quiet && echo "Sin cambios." && exit 0
           git commit -m "Precios $(TZ='America/Argentina/Buenos_Aires' date '+%Y-%m-%d %H:%M AR')"
-          git pull --rebase origin main
-          git push
+          # Force push: este JSON siempre se regenera completo, no hay riesgo de perder datos
+          git push --force-with-lease || git push --force
