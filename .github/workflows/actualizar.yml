@@ -2,15 +2,15 @@ name: Actualizar Precios SEPA
 
 on:
   schedule:
-    - cron: '0 15 * * *'
-    - cron: '30 15 * * *'
-    - cron: '0 16 * * *'
-    - cron: '30 16 * * *'
-    - cron: '0 17 * * *'
-    - cron: '30 17 * * *'
-    - cron: '0 18 * * *'
-    - cron: '30 18 * * *'
-    - cron: '0 19 * * *'
+    - cron: '0 15 * * *'    # 12:00 AR
+    - cron: '30 15 * * *'   # 12:30 AR
+    - cron: '0 16 * * *'    # 13:00 AR
+    - cron: '30 16 * * *'   # 13:30 AR
+    - cron: '0 17 * * *'    # 14:00 AR
+    - cron: '30 17 * * *'   # 14:30 AR
+    - cron: '0 18 * * *'    # 15:00 AR
+    - cron: '30 18 * * *'   # 15:30 AR
+    - cron: '0 19 * * *'    # 16:00 AR
   workflow_dispatch:
     inputs:
       motivo:
@@ -35,6 +35,7 @@ jobs:
         id: check_fecha
         run: |
           HOY=$(TZ='America/Argentina/Buenos_Aires' date '+%Y-%m-%d')
+          echo "Hoy: $HOY"
           FECHA_JSON=$(python3 -c "
           import json
           try:
@@ -42,11 +43,13 @@ jobs:
               print(d.get('fecha',''))
           except: print('')
           ")
+          echo "JSON tiene: $FECHA_JSON"
           if [ "$FECHA_JSON" = "$HOY" ]; then
             echo "ya_actualizado=true" >> $GITHUB_OUTPUT
             echo "Ya hay datos de hoy. Saliendo."
           else
             echo "ya_actualizado=false" >> $GITHUB_OUTPUT
+            echo "Datos desactualizados. Actualizando..."
           fi
 
       - name: Configurar Python
