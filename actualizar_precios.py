@@ -97,93 +97,86 @@ def descargar_zip(url):
     return buf
 
 # ── Procesar ──────────────────────────────────────────────────────────────────
+def to_float(v):
+    try: return float(str(v).strip()) if str(v).strip() else None
+    except: return None
+
 def procesar(zip_externo_buf):
     sucursales_out = {}
     productos_out  = {}
-    zips_procesados = 0
-    zips_con_locales = 0
+    errores        = []
 
     with zipfile.ZipFile(zip_externo_buf) as zext:
-        nombres = zext.namelist()
-        zips_internos = [n for n in nombres if n.lower().endswith('.zip')]
+        zips_internos = [n for n in zext.namelist() if n.lower().endswith('.zip')]
         total = len(zips_internos)
         print(f'📂 ZIPs internos encontrados: {total}')
 
         for idx, nombre_zip in enumerate(zips_internos, 1):
-            print(f'\r   Procesando {idx}/{total}: {nombre_zip[:50]}', end='', flush=True)
+            print(f'\r   [{idx}/{total}] {nombre_zip[:55]}', end='', flush=True)
             try:
-                zip_data = zext.read(nombre_zip)
-                with zipfile.ZipFile(io.BytesIO(zip_data)) as zint:
+                with zipfile.ZipFile(io.BytesIO(zext.read(nombre_zip))) as zint:
                     archivos = {n.lower(): n for n in zint.namelist()}
 
-                    # Leer sucursales
-                    nombre_suc = archivos.get('sucursales.csv')
-                    if not nombre_suc:
+                    # 1) Leer comercio.csv UNA sola vez por ZIP
+                    bandera_comercio = ''
+                    if 'comercio.csv' in archivos:
+                        try:
+                            for cr in leer_csv_bytes(zint.read(archivos['comercio.csv'])):
+                                b = (cr.get('comercio_bandera_nombre') or
+                                     cr.get('bandera_nombre') or '').strip()
+                                if b:
+                                    bandera_comercio = b
+                                    break
+                        except Exception as e:
+                            errores.append(f'comercio.csv en {nombre_zip}: {e}')
+
+                    # 2) Leer sucursales.csv
+                    if 'sucursales.csv' not in archivos:
                         continue
-                    suc_rows  = leer_csv_bytes(zint.read(nombre_suc))
-                    locales   = {}
-                    for row in suc_rows:
-                        if es_local(row):
-                            id_c = row.get('id_comercio','').strip()
-                            id_b = row.get('id_bandera','').strip()
-                            id_s = row.get('id_sucursal','').strip()
-                            skey = f'{id_c}_{id_b}_{id_s}'
-
-                            # Leer comercio.csv para nombre de bandera
-                            nombre_com_f = archivos.get('comercio.csv')
-                            bandera = ''
-                            if nombre_com_f and skey not in sucursales_out:
-                                try:
-                                    com_rows = leer_csv_bytes(zint.read(nombre_com_f))
-                                    for cr in com_rows:
-                                        if cr.get('id_comercio','').strip() == id_c:
-                                            bandera = cr.get('comercio_bandera_nombre',
-                                                     cr.get('bandera_nombre','')).strip()
-                                            break
-                                except Exception:
-                                    pass
-
-                            locales[skey] = True
-                            sucursales_out[skey] = {
-                                'nombre'   : row.get('sucursales_nombre','').strip(),
-                                'bandera'  : bandera,
-                                'calle'    : row.get('sucursales_calle','').strip(),
-                                'numero'   : row.get('sucursales_numero','').strip(),
-                                'localidad': row.get('sucursales_localidad','').strip(),
-                                'cp'       : row.get('sucursales_codigo_postal','').strip(),
-                                'horarios' : {
-                                    d: row.get(f'sucursales_horario_{d}','').strip()
-                                    for d in ['lunes','martes','miercoles','jueves',
-                                              'viernes','sabado','domingo']
-                                }
+                    suc_bytes = zint.read(archivos['sucursales.csv'])
+                    locales = {}
+                    for row in leer_csv_bytes(suc_bytes):
+                        if not es_local(row):
+                            continue
+                        id_c = str(row.get('id_comercio','')).strip()
+                        id_b = str(row.get('id_bandera','')).strip()
+                        id_s = str(row.get('id_sucursal','')).strip()
+                        skey = f'{id_c}_{id_b}_{id_s}'
+                        locales[skey] = True
+                        sucursales_out[skey] = {
+                            'nombre'   : row.get('sucursales_nombre','').strip(),
+                            'bandera'  : bandera_comercio,
+                            'calle'    : row.get('sucursales_calle','').strip(),
+                            'numero'   : row.get('sucursales_numero','').strip(),
+                            'localidad': row.get('sucursales_localidad','').strip(),
+                            'cp'       : row.get('sucursales_codigo_postal','').strip(),
+                            'horarios' : {
+                                d: row.get(f'sucursales_horario_{d}','').strip()
+                                for d in ['lunes','martes','miercoles','jueves',
+                                          'viernes','sabado','domingo']
                             }
+                        }
 
                     if not locales:
                         continue
-                    zips_con_locales += 1
+                    print(f' → {len(locales)} sucursal(es)', end='', flush=True)
 
-                    # Leer productos
-                    nombre_prod = archivos.get('productos.csv')
-                    if not nombre_prod:
+                    # 3) Leer productos.csv
+                    if 'productos.csv' not in archivos:
                         continue
-                    prod_rows = leer_csv_bytes(zint.read(nombre_prod))
-                    for row in prod_rows:
-                        id_c = row.get('id_comercio','').strip()
-                        id_b = row.get('id_bandera','').strip()
-                        id_s = row.get('id_sucursal','').strip()
+                    prod_bytes = zint.read(archivos['productos.csv'])
+                    prod_antes = len(productos_out)
+                    for row in leer_csv_bytes(prod_bytes):
+                        id_c = str(row.get('id_comercio','')).strip()
+                        id_b = str(row.get('id_bandera','')).strip()
+                        id_s = str(row.get('id_sucursal','')).strip()
                         skey = f'{id_c}_{id_b}_{id_s}'
                         if skey not in locales:
                             continue
                         ean = (row.get('productos_ean') or
-                               row.get('id_producto','')).strip()
+                               row.get('id_producto') or '').strip()
                         if not ean:
                             continue
-
-                        def f(campo):
-                            v = row.get(campo,'').strip()
-                            try: return float(v) if v else None
-                            except: return None
-
                         if ean not in productos_out:
                             productos_out[ean] = {
                                 'descripcion': row.get('productos_descripcion','').strip(),
@@ -191,21 +184,24 @@ def procesar(zip_externo_buf):
                                 'sucursales' : {}
                             }
                         productos_out[ean]['sucursales'][skey] = {
-                            'precio_lista'   : f('productos_precio_lista'),
-                            'promo1_precio'  : f('productos_precio_unitario_promo1'),
+                            'precio_lista'   : to_float(row.get('productos_precio_lista')),
+                            'promo1_precio'  : to_float(row.get('productos_precio_unitario_promo1')),
                             'promo1_leyenda' : row.get('productos_leyenda_promo1','').strip() or None,
-                            'promo2_precio'  : f('productos_precio_unitario_promo2'),
+                            'promo2_precio'  : to_float(row.get('productos_precio_unitario_promo2')),
                             'promo2_leyenda' : row.get('productos_leyenda_promo2','').strip() or None,
                         }
+                    nuevos = len(productos_out) - prod_antes
+                    print(f', {nuevos} producto(s) nuevos')
 
             except Exception as e:
-                pass  # ZIP interno corrupto → saltar
+                print(f'\n   ⚠️  Error en {nombre_zip}: {e}')
+                errores.append(f'{nombre_zip}: {e}')
 
-            zips_procesados += 1
-
-    print(f'\n✅ Procesados {zips_procesados} ZIPs, {zips_con_locales} con sucursales locales.')
+    print(f'\n✅ Procesados {total} ZIPs')
     print(f'   Sucursales encontradas : {len(sucursales_out)}')
     print(f'   Productos encontrados  : {len(productos_out)}')
+    if errores:
+        print(f'   ⚠️  Errores ({len(errores)}): ' + ' | '.join(errores[:5]))
     return sucursales_out, productos_out
 
 # ── Main ──────────────────────────────────────────────────────────────────────
