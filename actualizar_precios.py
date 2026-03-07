@@ -159,50 +159,48 @@ def procesar(zip_externo_buf):
 
                     if not locales:
                         continue
-
-                    # Construir mapa flexible: normalizar IDs quitando ceros
-                    # (sucursales.csv puede tener "01" y productos.csv "1" o viceversa)
-                    def norm(v): return str(int(v)) if str(v).strip().lstrip('0').isdigit() and str(v).strip() else str(v).strip()
-                    locales_norm = {}
-                    for sk in locales:
-                        partes = sk.split('_')
-                        if len(partes) == 3:
-                            sk_norm = '_'.join(norm(p) for p in partes)
-                            locales_norm[sk_norm] = sk   # normalizado → original
-                        locales_norm[sk] = sk             # también el original
-
                     print(f' → {len(locales)} sucursal(es)', end='', flush=True)
 
                     # 3) Leer productos.csv
+                    # ESTRATEGIA: Los productos.csv a veces usan IDs de sucursal
+                    # distintos a los de sucursales.csv (ej: Viedma tiene suc 77
+                    # pero productos arranca en suc 1). Por eso tomamos TODOS los
+                    # productos del comercio y los asignamos a la primera sucursal
+                    # local que corresponda al mismo id_bandera.
+                    # Si hay un match exacto de skey, lo usamos; si no, usamos
+                    # la sucursal local del mismo comercio+bandera.
                     if 'productos.csv' not in archivos:
                         print(f' (sin productos.csv)')
                         continue
+
+                    # Mapa: (id_comercio, id_bandera) → skey local preferido
+                    cb_to_skey = {}
+                    for sk in locales:
+                        parts = sk.split('_')
+                        if len(parts) >= 2:
+                            cb = (parts[0], parts[1])
+                            cb_to_skey[cb] = sk
+
                     prod_bytes = zint.read(archivos['productos.csv'])
-                    prod_filas = leer_csv_bytes(prod_bytes)
-
-                    # Debug: mostrar columnas y primera fila para diagnóstico
-                    if prod_filas:
-                        cols = list(prod_filas[0].keys())
-                        primer_skey = '_'.join([
-                            str(prod_filas[0].get('id_comercio','?')).strip(),
-                            str(prod_filas[0].get('id_bandera','?')).strip(),
-                            str(prod_filas[0].get('id_sucursal','?')).strip()
-                        ])
-                        # Mostrar skeys de sucursales vs primer skey de producto para diagnóstico
-                        skeys_suc = list(locales.keys())[:2]
-                        print(f'\n      skeys_suc: {skeys_suc} | primer_skey_prod: {primer_skey}', end='', flush=True)
-
                     prod_antes = len(productos_out)
-                    for row in prod_filas:
+                    skeys_prod_vistos = set()
+
+                    for row in leer_csv_bytes(prod_bytes):
                         id_c = str(row.get('id_comercio','')).strip()
                         id_b = str(row.get('id_bandera','')).strip()
                         id_s = str(row.get('id_sucursal','')).strip()
-                        skey_raw  = f'{id_c}_{id_b}_{id_s}'
-                        skey_norm = f'{norm(id_c)}_{norm(id_b)}_{norm(id_s)}'
-                        # Buscar en mapa flexible
-                        skey_real = locales_norm.get(skey_raw) or locales_norm.get(skey_norm)
-                        if not skey_real:
-                            continue
+                        skey_exact = f'{id_c}_{id_b}_{id_s}'
+
+                        # Primero intentar match exacto
+                        if skey_exact in locales:
+                            skey_usar = skey_exact
+                        else:
+                            # Fallback: mismo comercio+bandera → usar sucursal local
+                            skey_usar = cb_to_skey.get((id_c, id_b))
+                            if not skey_usar:
+                                continue
+
+                        skeys_prod_vistos.add(skey_usar)
                         ean = (row.get('productos_ean') or
                                row.get('id_producto') or '').strip()
                         if not ean:
@@ -213,7 +211,7 @@ def procesar(zip_externo_buf):
                                 'marca'      : row.get('productos_marca','').strip(),
                                 'sucursales' : {}
                             }
-                        productos_out[ean]['sucursales'][skey_real] = {
+                        productos_out[ean]['sucursales'][skey_usar] = {
                             'precio_lista'   : to_float(row.get('productos_precio_lista')),
                             'promo1_precio'  : to_float(row.get('productos_precio_unitario_promo1')),
                             'promo1_leyenda' : row.get('productos_leyenda_promo1','').strip() or None,
