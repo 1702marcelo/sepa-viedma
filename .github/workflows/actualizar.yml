@@ -43,4 +43,4 @@ jobs:
           git add precios_viedma_hoy.json
           # Solo hace commit si el archivo cambió
           git diff --staged --quiet || git commit -m "✅ Precios actualizados $(date '+%Y-%m-%d %H:%M UTC')"
-          git push
+          git pull --rebase && git push
