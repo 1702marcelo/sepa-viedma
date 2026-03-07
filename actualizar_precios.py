@@ -1,7 +1,7 @@
 """
 actualizar_precios.py — SEPA Viedma / Carmen de Patagones
 """
-import requests, zipfile, io, csv, json, os, sys
+import requests, zipfile, io, csv, json, os, sys, traceback
 from datetime import datetime, timezone, timedelta
 
 CODIGOS_POSTALES = {'8500', '8504'}
@@ -158,6 +158,7 @@ def procesar(zip_buf):
             except Exception as e:
                 errores.append(f'{nzip}: {e}')
                 print(f'\n   ⚠️  Error en {nzip}: {e}')
+                traceback.print_exc()
 
     print(f'\n✅ {zips_ok} ZIPs | {len(sucursales_out)} sucursales | {len(productos_out)} productos')
     if errores:
