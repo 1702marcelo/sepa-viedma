@@ -227,19 +227,19 @@ function horHoy(h){
 // Carga de imagen con fallbacks robustos
 const IMG_CACHE={};
 function cargarImg(img, ean){
-  // 1º: imagen pre-descargada por el workflow en img/{ean}.jpg (GitHub Pages)
-  // 2º: Open Food Facts como fallback
-  // 3º: emoji si todo falla
+  // Caché en memoria: evita reintentos durante la sesión
   if(IMG_CACHE[ean]===false){ img.parentNode.innerHTML='🛒'; return; }
   if(IMG_CACHE[ean]){ img.src=IMG_CACHE[ean]; return; }
+  // El navegador cachea automáticamente las respuestas HTTP
+  // → segunda visita: carga instantánea sin red
   const e=String(ean).padStart(13,'0');
   const p=`${e.slice(0,3)}/${e.slice(3,6)}/${e.slice(6,9)}/${e.slice(9)}`;
   const base=`https://images.openfoodfacts.org/images/products/${p}`;
   const urls=[
-    `img/${ean}.jpg`,
     `${base}/front_es.200.jpg`,
     `${base}/front.200.jpg`,
     `${base}/front_world.200.jpg`,
+    `${base}/1.200.jpg`,
   ];
   let idx=0;
   function probar(){
