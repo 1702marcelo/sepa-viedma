@@ -117,7 +117,19 @@ def procesar(zip_buf):
                         print(' (sin productos.csv)'); continue
 
                     antes = len(productos_out)
-                    for row in leer_csv_bytes(zi.read(arch['productos.csv'])):
+                    prod_filas = leer_csv_bytes(zi.read(arch['productos.csv']))
+                    # DEBUG: mostrar primeras filas para ZIPs con sucursales locales
+                    if prod_filas:
+                        cols = list(prod_filas[0].keys())
+                        print(f'\n      cols_prod: {cols[:6]}')
+                        for fila_debug in prod_filas[:3]:
+                            ic_d  = str(fila_debug.get('id_comercio','?') or '?').strip()
+                            ib_d  = str(fila_debug.get('id_bandera','?')  or '?').strip()
+                            is_d  = str(fila_debug.get('id_sucursal','?') or '?').strip()
+                            ean_d = str(fila_debug.get('productos_ean', fila_debug.get('id_producto','?')) or '?').strip()
+                            print(f'      fila: ic={ic_d!r} ib={ib_d!r} is={is_d!r} ean={ean_d!r}')
+                        print(f'      cb_map keys: {list(cb_map.keys())}')
+                    for row in prod_filas:
                         ic  = str(row.get('id_comercio','') or '').strip()
                         ib  = str(row.get('id_bandera','')  or '').strip()
                         is_ = str(row.get('id_sucursal','') or '').strip()
