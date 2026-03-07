@@ -37,7 +37,7 @@ jobs:
           HOY=$(TZ='America/Argentina/Buenos_Aires' date '+%Y-%m-%d')
           echo "Hoy: $HOY"
           FECHA_JSON=$(python3 -c "
-          import json, sys
+          import json
           try:
               d = json.load(open('precios_viedma_hoy.json'))
               print(d.get('fecha',''))
@@ -60,7 +60,7 @@ jobs:
 
       - name: Instalar dependencias
         if: steps.check_fecha.outputs.ya_actualizado == 'false'
-        run: pip install requests
+        run: pip install requests Pillow
 
       - name: Ejecutar script
         if: steps.check_fecha.outputs.ya_actualizado == 'false'
@@ -72,7 +72,9 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add precios_viedma_hoy.json
+          git add img/ 2>/dev/null || true
           git diff --staged --quiet && echo "Sin cambios." && exit 0
-          git commit -m "Precios $(TZ='America/Argentina/Buenos_Aires' date '+%Y-%m-%d %H:%M AR')"
+          N_IMGS=$(git diff --staged --name-only | grep "^img/" | wc -l)
+          git commit -m "Precios $(TZ='America/Argentina/Buenos_Aires' date '+%Y-%m-%d %H:%M AR') · ${N_IMGS} imágenes nuevas"
           git pull --rebase origin main
           git push
